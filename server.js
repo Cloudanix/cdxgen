@@ -25,10 +25,14 @@ app.use(
 );
 app.use(compression());
 
-const gitClone = (repoUrl, branch = null) => {
+const gitClone = (repoUrl, branch = null, username = null, token = null) => {
   const tempDir = fs.mkdtempSync(
     path.join(os.tmpdir(), path.basename(repoUrl))
   );
+  console.log("tempDir: ", tempDir);
+  if( username && token ) {
+    repoUrl = repoUrl.replace("https://", `https://${username}:${token}@`);
+  }
 
   if (branch == null) {
     console.log("Cloning Repo", "to", tempDir);
@@ -84,7 +88,9 @@ const parseQueryString = (q, body, options = {}) => {
     "only",
     "autoCompositions",
     "gitBranch",
-    "active"
+    "active",
+    "username",
+    "token"
   ];
 
   for (const param of queryParams) {
@@ -136,7 +142,7 @@ const start = (options) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     let srcDir = filePath;
     if (filePath.startsWith("http") || filePath.startsWith("git")) {
-      srcDir = gitClone(filePath, reqOptions.gitBranch);
+      srcDir = gitClone(filePath, reqOptions.gitBranch, reqOptions.username, reqOptions.token);
       cleanup = true;
     }
     console.log("Generating SBOM for", srcDir);
