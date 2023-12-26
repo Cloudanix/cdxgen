@@ -1351,14 +1351,30 @@ test("parse paket.lock", async () => {
     dependenciesList: []
   });
   const dep_list = await parsePaketLockData(
-    readFileSync("./test/data/paket.lock", { encoding: "utf-8" })
+    readFileSync("./test/data/paket.lock", { encoding: "utf-8" }),
+    "./test/data/paket.lock"
   );
   expect(dep_list.pkgList.length).toEqual(13);
   expect(dep_list.pkgList[0]).toEqual({
     group: "",
     name: "0x53A.ReferenceAssemblies.Paket",
     version: "0.2",
-    purl: "pkg:nuget/0x53A.ReferenceAssemblies.Paket@0.2"
+    purl: "pkg:nuget/0x53A.ReferenceAssemblies.Paket@0.2",
+    "bom-ref": "pkg:nuget/0x53A.ReferenceAssemblies.Paket@0.2",
+    properties: [{ name: "SrcFile", value: "./test/data/paket.lock" }],
+    evidence: {
+      identity: {
+        field: "purl",
+        confidence: 1,
+        methods: [
+          {
+            technique: "manifest-analysis",
+            confidence: 1,
+            value: "./test/data/paket.lock"
+          }
+        ]
+      }
+    }
   });
   expect(dep_list.dependenciesList.length).toEqual(13);
   expect(dep_list.dependenciesList[2]).toEqual({
@@ -1746,8 +1762,8 @@ test("parsePkgLock v3", async () => {
     projectName: "cdxgen"
   });
   deps = parsedList.pkgList;
-  expect(deps.length).toEqual(1205);
-  expect(parsedList.dependenciesList.length).toEqual(1205);
+  expect(deps.length).toEqual(1195);
+  expect(parsedList.dependenciesList.length).toEqual(1195);
 });
 
 test("parseBowerJson", async () => {
@@ -1807,6 +1823,8 @@ test("parsePnpmLock", async () => {
       "sha512-IGhtTmpjGbYzcEDOw7DcQtbQSXcG9ftmAXtWTu9V936vDye4xjjekktFAtgZsWpzTj/X01jocB46mTywm/4SZw==",
     group: "@babel",
     name: "code-frame",
+    "bom-ref": "pkg:npm/@babel/code-frame@7.10.1",
+    purl: "pkg:npm/%40babel/code-frame@7.10.1",
     scope: undefined,
     version: "7.10.1",
     properties: [
@@ -1837,6 +1855,8 @@ test("parsePnpmLock", async () => {
       "sha512-iAXqUn8IIeBTNd72xsFlgaXHkMBMt6y4HJp1tIaK465CWLT/fG1aqB7ykr95gHHmlBdGbFeWWfyB4NJJ0nmeIg==",
     group: "@babel",
     name: "code-frame",
+    "bom-ref": "pkg:npm/@babel/code-frame@7.16.7",
+    purl: "pkg:npm/%40babel/code-frame@7.16.7",
     scope: "optional",
     version: "7.16.7",
     properties: [
@@ -1866,6 +1886,8 @@ test("parsePnpmLock", async () => {
     group: "",
     name: "ansi-regex",
     version: "2.1.1",
+    "bom-ref": "pkg:npm/ansi-regex@2.1.1",
+    purl: "pkg:npm/ansi-regex@2.1.1",
     scope: undefined,
     _integrity: "sha1-w7M6te42DYbg5ijwRorn7yfWVN8=",
     properties: [{ name: "SrcFile", value: "./test/data/pnpm-lock2.yaml" }],
@@ -1900,6 +1922,8 @@ test("parsePnpmLock", async () => {
     group: "@nodelib",
     name: "fs.scandir",
     version: "2.1.5",
+    "bom-ref": "pkg:npm/@nodelib/fs.scandir@2.1.5",
+    purl: "pkg:npm/%40nodelib/fs.scandir@2.1.5",
     scope: undefined,
     _integrity:
       "sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==",
@@ -1933,6 +1957,8 @@ test("parsePnpmLock", async () => {
     group: "@babel",
     name: "code-frame",
     version: "7.18.6",
+    "bom-ref": "pkg:npm/@babel/code-frame@7.18.6",
+    purl: "pkg:npm/%40babel/code-frame@7.18.6",
     scope: "optional",
     _integrity:
       "sha512-TDCmlK5eOvH+eH7cdAFlNXeVJqWIQ7gW9tY1GJIpUtFb6CmjVyq2VM3u71bOyR8CRihcCgMUYoDNyLXao3+70Q==",
@@ -1955,6 +1981,8 @@ test("parsePnpmLock", async () => {
     group: "",
     name: "yargs",
     version: "17.7.1",
+    "bom-ref": "pkg:npm/yargs@17.7.1",
+    purl: "pkg:npm/yargs@17.7.1",
     scope: "optional",
     _integrity:
       "sha512-cwiTb08Xuv5fqF4AovYacTFNxk62th7LKJ6BL9IGUpTJrWoU7/7WdQGTP2SjKf1dUNBGzDd28p/Yfs/GI6JrLw==",
@@ -1980,6 +2008,8 @@ test("parsePnpmLock", async () => {
     group: "@babel",
     name: "code-frame",
     version: "7.18.6",
+    "bom-ref": "pkg:npm/@babel/code-frame@7.18.6",
+    purl: "pkg:npm/%40babel/code-frame@7.18.6",
     scope: "optional",
     _integrity:
       "sha512-TDCmlK5eOvH+eH7cdAFlNXeVJqWIQ7gW9tY1GJIpUtFb6CmjVyq2VM3u71bOyR8CRihcCgMUYoDNyLXao3+70Q==",
@@ -2301,13 +2331,16 @@ test("parseYarnLock", async () => {
 });
 
 test("parseComposerLock", () => {
-  let deps = parseComposerLock("./test/data/composer.lock");
-  expect(deps.length).toEqual(1);
-  expect(deps[0]).toEqual({
+  let retMap = parseComposerLock("./test/data/composer.lock");
+  expect(retMap.pkgList.length).toEqual(1);
+  expect(retMap.dependenciesList.length).toEqual(1);
+  expect(retMap.pkgList[0]).toEqual({
     group: "quickbooks",
     name: "v3-php-sdk",
     scope: "required",
-    version: "4.0.6.1",
+    version: "v4.0.6.1",
+    purl: "pkg:composer/quickbooks/v3-php-sdk@v4.0.6.1",
+    "bom-ref": "pkg:composer/quickbooks/v3-php-sdk@v4.0.6.1",
     repository: {
       type: "git",
       url: "https://github.com/intuit/QuickBooks-V3-PHP-SDK.git",
@@ -2319,6 +2352,10 @@ test("parseComposerLock", () => {
       {
         name: "SrcFile",
         value: "./test/data/composer.lock"
+      },
+      {
+        name: "Namespaces",
+        value: "QuickBooksOnline\\API\\"
       }
     ],
     evidence: {
@@ -2336,13 +2373,16 @@ test("parseComposerLock", () => {
     }
   });
 
-  deps = parseComposerLock("./test/data/composer-2.lock");
-  expect(deps.length).toEqual(73);
-  expect(deps[0]).toEqual({
+  retMap = parseComposerLock("./test/data/composer-2.lock");
+  expect(retMap.pkgList.length).toEqual(73);
+  expect(retMap.dependenciesList.length).toEqual(73);
+  expect(retMap.pkgList[0]).toEqual({
     group: "amphp",
     name: "amp",
     scope: "required",
-    version: "2.4.4",
+    version: "v2.4.4",
+    purl: "pkg:composer/amphp/amp@v2.4.4",
+    "bom-ref": "pkg:composer/amphp/amp@v2.4.4",
     repository: {
       type: "git",
       url: "https://github.com/amphp/amp.git",
@@ -2354,6 +2394,10 @@ test("parseComposerLock", () => {
       {
         name: "SrcFile",
         value: "./test/data/composer-2.lock"
+      },
+      {
+        name: "Namespaces",
+        value: "Amp\\"
       }
     ],
     evidence: {
@@ -2371,12 +2415,15 @@ test("parseComposerLock", () => {
     }
   });
 
-  deps = parseComposerLock("./test/data/composer-3.lock");
-  expect(deps.length).toEqual(62);
-  expect(deps[0]).toEqual({
+  retMap = parseComposerLock("./test/data/composer-3.lock");
+  expect(retMap.pkgList.length).toEqual(62);
+  expect(retMap.dependenciesList.length).toEqual(62);
+  expect(retMap.pkgList[0]).toEqual({
     group: "amphp",
     name: "amp",
-    version: "2.6.2",
+    version: "v2.6.2",
+    purl: "pkg:composer/amphp/amp@v2.6.2",
+    "bom-ref": "pkg:composer/amphp/amp@v2.6.2",
     repository: {
       type: "git",
       url: "https://github.com/amphp/amp.git",
@@ -2385,7 +2432,13 @@ test("parseComposerLock", () => {
     license: ["MIT"],
     description: "A non-blocking concurrency framework for PHP applications.",
     scope: "required",
-    properties: [{ name: "SrcFile", value: "./test/data/composer-3.lock" }],
+    properties: [
+      { name: "SrcFile", value: "./test/data/composer-3.lock" },
+      {
+        name: "Namespaces",
+        value: "Amp\\"
+      }
+    ],
     evidence: {
       identity: {
         field: "purl",
@@ -2399,6 +2452,42 @@ test("parseComposerLock", () => {
         ]
       }
     }
+  });
+  retMap = parseComposerLock("./test/data/composer-4.lock");
+  expect(retMap.pkgList.length).toEqual(50);
+  expect(retMap.dependenciesList.length).toEqual(50);
+  expect(retMap.pkgList[0]).toEqual({
+    group: "apache",
+    name: "log4php",
+    purl: "pkg:composer/apache/log4php@2.3.0",
+    "bom-ref": "pkg:composer/apache/log4php@2.3.0",
+    version: "2.3.0",
+    repository: {
+      type: "git",
+      url: "https://git-wip-us.apache.org/repos/asf/logging-log4php.git",
+      reference: "8c6df2481cd68d0d211d38f700406c5f0a9de0c2"
+    },
+    license: ["Apache-2.0"],
+    description: "A versatile logging framework for PHP",
+    scope: "required",
+    properties: [{ name: "SrcFile", value: "./test/data/composer-4.lock" }],
+    evidence: {
+      identity: {
+        field: "purl",
+        confidence: 1,
+        methods: [
+          {
+            confidence: 1,
+            technique: "manifest-analysis",
+            value: "./test/data/composer-4.lock"
+          }
+        ]
+      }
+    }
+  });
+  expect(retMap.dependenciesList[1]).toEqual({
+    ref: "pkg:composer/doctrine/annotations@v1.2.1",
+    dependsOn: ["pkg:composer/doctrine/lexer@v1.0"]
   });
 });
 
