@@ -175,6 +175,24 @@ const start = (options) => {
       Object.assign({}, options)
     );
     const filePath = q.path || q.url || req.body.path || req.body.url;
+    let srcDir = filePath;
+    if(reqOptions.git == true)
+    {
+      if(reqOptions.private == true)
+      {
+        srcDir = gitTar(reqOptions.repository, reqOptions.owner, reqOptions.token, reqOptions.gitBranch);
+      }
+      else if (!filePath) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        return res.end(
+          "{'error': 'true', 'message': 'path or url is required.'}\n"
+        );
+      }
+      else if (filePath.startsWith("http") || filePath.startsWith("git")) {
+        srcDir = gitClone(filePath, reqOptions.gitBranch);
+      }
+      cleanup = true;
+  }
     if (!filePath) {
       res.writeHead(500, { "Content-Type": "application/json" });
       return res.end(
@@ -182,18 +200,7 @@ const start = (options) => {
       );
     }
     res.writeHead(200, { "Content-Type": "application/json" });
-    let srcDir = filePath;
-    if(reqOptions.git == true)
-    {
-      if (filePath.startsWith("http") || filePath.startsWith("git")) {
-        srcDir = gitClone(filePath, reqOptions.gitBranch);
-      }
-      else if(reqOptions.private == true)
-      {
-        srcDir = gitTar(reqOptions.repository, reqOptions.owner, reqOptions.token, reqOptions.gitBranch);
-      }
-      cleanup = true;
-  }
+
     console.log("Generating SBOM for", srcDir);
     let bomNSData = (await createBom(srcDir, reqOptions)) || {};
     if (reqOptions.requiredOnly || reqOptions["filter"] || reqOptions["only"]) {
