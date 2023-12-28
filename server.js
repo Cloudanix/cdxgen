@@ -8,6 +8,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { createBom, submitBom } from "./index.js";
 import { postProcess } from "./postgen.js";
+import { Octokit } from "@octokit/core";
+import tar from "tar";
+import zlib from "zlib";
 
 import compression from "compression";
 
@@ -25,14 +28,10 @@ app.use(
 );
 app.use(compression());
 
-const gitClone = (repoUrl, branch = null, username = null, token = null) => {
+const gitClone = (repoUrl, branch = null) => {
   const tempDir = fs.mkdtempSync(
     path.join(os.tmpdir(), path.basename(repoUrl))
   );
-  console.log("tempDir: ", tempDir);
-  if( username && token ) {
-    repoUrl = repoUrl.replace("https://", `https://${username}:${token}@`);
-  }
 
   if (branch == null) {
     console.log("Cloning Repo", "to", tempDir);
@@ -64,6 +63,49 @@ const gitClone = (repoUrl, branch = null, username = null, token = null) => {
 
   return tempDir;
 };
+async function gitTar(repository, owner, token, branch = null){
+  if(branch == null)
+  {
+    branch = "main"
+  }
+  var target = fs.mkdtempSync(
+    path.join(os.tmpdir(), owner+repository)
+  );
+  console.log("Downloading Repo", "in", target);
+  const octokit = new Octokit({
+    auth: token,
+  })
+  const response = await octokit.request('GET /repos/{owner}/{repo}/tarball/{ref}', {
+    owner: owner,
+    repo: repository,
+    ref: branch,
+    headers: {
+      'X-GitHub-Api-Version': '2022-11-28'
+    }
+  })
+  if(response.status == 200 || response.status == 302){
+    var tarballData = response.data;
+    var tarFile = target + "/" + owner + repository + ".tar";
+    var decompressedData = zlib.gunzipSync(tarballData);
+    fs.writeFileSync(tarFile, decompressedData);
+    target = target+"/repository";
+
+    // Wrap extraction in a Promise
+    if (!fs.existsSync(target)) {
+      fs.mkdirSync(target, { recursive: true });
+    }
+    tar.x({
+      file: tarFile,
+      C: target,
+      sync: true,
+    });
+    fs.unlinkSync(tarFile);
+  }
+  else{
+    console.log("Error downloading repo: " + response.status);
+  }
+  return target;
+};
 
 const parseQueryString = (q, body, options = {}) => {
   if (body && Object.keys(body).length) {
@@ -87,9 +129,12 @@ const parseQueryString = (q, body, options = {}) => {
     "filter",
     "only",
     "autoCompositions",
+    "git",
     "gitBranch",
     "active",
-    "username",
+    "private",
+    "owner",
+    "repository",
     "token"
   ];
 
@@ -133,18 +178,32 @@ const start = (options) => {
       Object.assign({}, options)
     );
     const filePath = q.path || q.url || req.body.path || req.body.url;
-    if (!filePath) {
+    let srcDir = filePath;
+    if(reqOptions.git == "true")
+    {
+      if(reqOptions.private == "true")
+      {
+        srcDir = await gitTar(reqOptions.repository, reqOptions.owner, reqOptions.token, reqOptions.gitBranch);
+      }
+      else if (!filePath) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        return res.end(
+          "{'error': 'true', 'message': 'path or url is required.'}\n"
+        );
+      }
+      else if (filePath.startsWith("http") || filePath.startsWith("git")) {
+        srcDir = gitClone(filePath, reqOptions.gitBranch);
+      }
+      cleanup = true;
+  }
+    else if (!filePath) {
       res.writeHead(500, { "Content-Type": "application/json" });
       return res.end(
         "{'error': 'true', 'message': 'path or url is required.'}\n"
       );
     }
     res.writeHead(200, { "Content-Type": "application/json" });
-    let srcDir = filePath;
-    if (filePath.startsWith("http") || filePath.startsWith("git")) {
-      srcDir = gitClone(filePath, reqOptions.gitBranch, reqOptions.username, reqOptions.token);
-      cleanup = true;
-    }
+
     console.log("Generating SBOM for", srcDir);
     let bomNSData = (await createBom(srcDir, reqOptions)) || {};
     if (reqOptions.requiredOnly || reqOptions["filter"] || reqOptions["only"]) {
