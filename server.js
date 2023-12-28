@@ -9,7 +9,7 @@ import path from "node:path";
 import { createBom, submitBom } from "./index.js";
 import { postProcess } from "./postgen.js";
 import { Octokit } from "@octokit/core";
-import tar from "tar-fs";
+import tar from "tar";
 import zlib from "zlib";
 
 import compression from "compression";
@@ -68,8 +68,8 @@ async function gitTar(repository, owner, token, branch = null){
   {
     branch = "main"
   }
-  const target = fs.mkdtempSync(
-    path.join(os.tmpdir(), path.basename(repoUrl))
+  var target = fs.mkdtempSync(
+    path.join(os.tmpdir(), owner+repository)
   );
   console.log("Downloading Repo", "in", target);
   const octokit = new Octokit({
@@ -85,18 +85,21 @@ async function gitTar(repository, owner, token, branch = null){
   })
   if(response.status == 200 || response.status == 302){
     var tarballData = response.data;
-    var tarFile = target + owner + repository + ".tar";
+    var tarFile = target + "/" + owner + repository + ".tar";
     var decompressedData = zlib.gunzipSync(tarballData);
     fs.writeFileSync(tarFile, decompressedData);
+    target = target+"/repository";
 
-    var extractionStream = tar.extract(target);
-    extractionStream.on('finish', () => {
-      // Extraction is complete, now delete the tarFile
-      fs.unlinkSync(tarFile);
-      console.log(`Extraction complete`);
+    // Wrap extraction in a Promise
+    if (!fs.existsSync(target)) {
+      fs.mkdirSync(target, { recursive: true });
+    }
+    tar.x({
+      file: tarFile,
+      C: target,
+      sync: true,
     });
-    // extracting a directory
-    fs.createReadStream(tarFile).pipe(extractionStream);
+    fs.unlinkSync(tarFile);
   }
   else{
     console.log("Error downloading repo: " + response.status);
@@ -176,11 +179,11 @@ const start = (options) => {
     );
     const filePath = q.path || q.url || req.body.path || req.body.url;
     let srcDir = filePath;
-    if(reqOptions.git == true)
+    if(reqOptions.git == "true")
     {
-      if(reqOptions.private == true)
+      if(reqOptions.private == "true")
       {
-        srcDir = gitTar(reqOptions.repository, reqOptions.owner, reqOptions.token, reqOptions.gitBranch);
+        srcDir = await gitTar(reqOptions.repository, reqOptions.owner, reqOptions.token, reqOptions.gitBranch);
       }
       else if (!filePath) {
         res.writeHead(500, { "Content-Type": "application/json" });
@@ -193,7 +196,7 @@ const start = (options) => {
       }
       cleanup = true;
   }
-    if (!filePath) {
+    else if (!filePath) {
       res.writeHead(500, { "Content-Type": "application/json" });
       return res.end(
         "{'error': 'true', 'message': 'path or url is required.'}\n"
