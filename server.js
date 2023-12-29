@@ -84,27 +84,32 @@ async function gitTar(repository, owner, token, branch = null){
     }
   })
   if(response.status == 200 || response.status == 302){
-    var tarballData = response.data;
-    var tarFile = target + "/" + owner + repository + ".tar";
-    var decompressedData = zlib.gunzipSync(tarballData);
-    fs.writeFileSync(tarFile, decompressedData);
-    target = target+"/repository";
+    try{
+      var tarballData = response.data;
+      var tarFile = target + "/" + owner + repository + ".tar";
+      var decompressedData = zlib.gunzipSync(tarballData);
+      fs.writeFileSync(tarFile, decompressedData);
+      target = target+"/repository";
 
-    // Wrap extraction in a Promise
-    if (!fs.existsSync(target)) {
-      fs.mkdirSync(target, { recursive: true });
+      // Wrap extraction in a Promise
+      if (!fs.existsSync(target)) {
+        fs.mkdirSync(target, { recursive: true });
+      }
+      tar.x({
+        file: tarFile,
+        C: target,
+        sync: true,
+      });
+      fs.unlinkSync(tarFile);
     }
-    tar.x({
-      file: tarFile,
-      C: target,
-      sync: true,
-    });
-    fs.unlinkSync(tarFile);
+    catch(error){
+      return { path: target, error: "Error extracting repo: " + error };
+    }
   }
   else{
-    console.log("Error downloading repo: " + response.status);
+    return { path: target, error: "Error downloading repo: " + response.status };
   }
-  return target;
+  return { path: target, error: "" };
 };
 
 const parseQueryString = (q, body, options = {}) => {
@@ -184,6 +189,16 @@ const start = (options) => {
       if(reqOptions.private == "true")
       {
         srcDir = await gitTar(reqOptions.repository, reqOptions.owner, reqOptions.token, reqOptions.gitBranch);
+        if(srcDir.error != "")
+        {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          return res.end(
+            `{'error': 'true', 'message': '${srcDir.error}'}\n`
+          );
+        }
+        else{
+          srcDir = srcDir.path;
+        }
       }
       else if (!filePath) {
         res.writeHead(500, { "Content-Type": "application/json" });
